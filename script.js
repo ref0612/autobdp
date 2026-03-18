@@ -8,12 +8,18 @@ const SUCURSALES = {
     '627': 'Terminal Viña del Mar'
 };
 
-const CATEGORIAS = {
+const ETIQUETAS = {
     confirmed_mot: 'Confirmed MOT',
-    prepostponed: 'Prepostponed'
+    prepostponed:  'Prepostponed',
+    cancelled_mot: 'Cancelled MOT',
+    confirmed_ot:  'Confirmed OT',
+    expenses:      'Gastos',
+    incomes:       'Ingresos',
+    rectify:       'Rectificar',
+    cancelled:     'Cancelados'
 };
 
-const BEARER = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMCIsInNjcCI6InVzZXIiLCJhdWQiOm51bGwsImlhdCI6MTc3Mzg0Mjg3OSwiZXhwIjoxNzc0MDU4ODc5LCJqdGkiOiI5OTE3MzEwZS03YzA3LTRkZWMtODI3Yi0yYTFlOWM2ZDFlNzYifQ.3uTWrsi4Se5-QdVAhbtCjAuyU_aJ67C9aVoGNCElfqo';
+const BEARER = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMCIsInNjcCI6InVzZXIiLCJhdWQiOm51bGwsImlhdCI6MTc3Mzg1OTMxNSwiZXhwIjoxNzc0MDc1MzE1LCJqdGkiOiIzMWUwZmFhMi1kZjE4LTQyNmItODM1ZS01MmNkYTBhOWM3M2MifQ.QHl5VAgQ31hWlntze5Xvodn5QOZpeHuH5X0_eh6-njk';
 
 function getHeaders(sucursalId) {
     return {
@@ -49,28 +55,44 @@ document.getElementById('consultarArqueo').addEventListener('click', async () =>
 
         const data = await res.json();
         const allData = data.data.all_data;
+        const scannedData = data.data.scanned_data || {};
 
         resultados.innerHTML = '';
 
-        for (const [key, label] of Object.entries(CATEGORIAS)) {
-            const items = allData[key] || [];
-            if (items.length === 0) continue;
+        for (const [key, items] of Object.entries(allData)) {
+            if (!items || items.length === 0) continue;
+
+            const label = ETIQUETAS[key] || key;
+            const scanned = scannedData[key] || [];
+            const pendientes = items.filter(i => !scanned.includes(i));
+            const yaEscaneados = items.filter(i => scanned.includes(i));
+            const todoEscaneado = pendientes.length === 0;
 
             const section = document.createElement('div');
             section.className = 'categoria-section';
             section.innerHTML = `
                 <div class="categoria-header">
                     <span class="categoria-titulo">${label}</span>
-                    <span class="categoria-count">${items.length} pendientes</span>
-                    <button class="btn-escanear" data-key="${key}">Escanear</button>
+                    <span class="categoria-count">
+                        ${todoEscaneado
+                            ? `<span class="badge-ok">✅ Todo escaneado (${items.length})</span>`
+                            : `${pendientes.length} pendientes / ${yaEscaneados.length} escaneados`
+                        }
+                    </span>
+                    ${!todoEscaneado
+                        ? `<button class="btn-escanear" data-key="${key}">Escanear</button>`
+                        : ''
+                    }
                 </div>
                 <p class="categoria-status" id="status-${key}"></p>
             `;
             resultados.appendChild(section);
 
-            section.querySelector('.btn-escanear').addEventListener('click', () => {
-                escanearCategoria(cuaId, sucursalId, key, items, section.querySelector(`#status-${key}`));
-            });
+            if (!todoEscaneado) {
+                section.querySelector('.btn-escanear').addEventListener('click', () => {
+                    escanearCategoria(cuaId, sucursalId, key, pendientes, section.querySelector(`#status-${key}`));
+                });
+            }
         }
 
         if (!resultados.innerHTML) {
@@ -107,4 +129,5 @@ async function escanearCategoria(cuaId, sucursalId, key, items, statusEl) {
 
     statusEl.textContent = `✅ Completado: ${ok} ok, ${fail} fallidos.`;
     btn.textContent = 'Escaneado';
+    btn.disabled = true;
 }
