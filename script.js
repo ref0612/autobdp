@@ -19,16 +19,87 @@ const ETIQUETAS = {
     cancelled:     'Cancelados'
 };
 
-const BEARER = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMCIsInNjcCI6InVzZXIiLCJhdWQiOm51bGwsImlhdCI6MTc3Mzg1OTMxNSwiZXhwIjoxNzc0MDc1MzE1LCJqdGkiOiIzMWUwZmFhMi1kZjE4LTQyNmItODM1ZS01MmNkYTBhOWM3M2MifQ.QHl5VAgQ31hWlntze5Xvodn5QOZpeHuH5X0_eh6-njk';
+const DEFAULT_BEARER = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMCIsInNjcCI6InVzZXIiLCJhdWQiOm51bGwsImlhdCI6MTc3Mzg1OTMxNSwiZXhwIjoxNzc0MDc1MzE1LCJqdGkiOiIzMWUwZmFhMi1kZjE4LTQyNmItODM1ZS01MmNkYTBhOWM3M2MifQ.QHl5VAgQ31hWlntze5Xvodn5QOZpeHuH5X0_eh6-njk';
+
+let currentBearer = localStorage.getItem('bearer') || DEFAULT_BEARER;
 
 function getHeaders(sucursalId) {
     return {
         'accept': 'application/json',
-        'authorization': `Bearer ${BEARER}`,
+        'authorization': `Bearer ${currentBearer}`,
         'category_type': '1',
         'switched-user-id': sucursalId
     };
 }
+
+function isTokenExpired(token) {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return Date.now() / 1000 > payload.exp;
+    } catch {
+        return true;
+    }
+}
+
+function getTokenExpiry(token) {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return new Date(payload.exp * 1000);
+    } catch {
+        return null;
+    }
+}
+
+function updateTokenStatus() {
+    const statusEl = document.getElementById('tokenStatus');
+    if (isTokenExpired(currentBearer)) {
+        statusEl.textContent = '⚠️ Token expirado — actualízalo para continuar';
+        statusEl.className = 'token-status expired';
+    } else {
+        const exp = getTokenExpiry(currentBearer);
+        const diff = Math.round((exp - Date.now()) / 1000 / 3600);
+        statusEl.textContent = `🟢 Token válido — expira en ${diff}h (${exp.toLocaleDateString('es-CL')} ${exp.toLocaleTimeString('es-CL', {hour: '2-digit', minute:'2-digit'})})`;
+        statusEl.className = 'token-status valid';
+    }
+}
+
+// Modal handlers
+document.getElementById('btnActualizarToken').addEventListener('click', () => {
+    document.getElementById('modalToken').classList.remove('hidden');
+    document.getElementById('inputNuevoToken').value = '';
+    document.getElementById('inputNuevoToken').focus();
+});
+
+document.getElementById('btnCancelarToken').addEventListener('click', () => {
+    document.getElementById('modalToken').classList.add('hidden');
+});
+
+document.getElementById('btnGuardarToken').addEventListener('click', () => {
+    const nuevoToken = document.getElementById('inputNuevoToken').value.trim();
+    if (!nuevoToken) {
+        alert('Por favor, ingresa el token.');
+        return;
+    }
+    if (nuevoToken.split('.').length !== 3) {
+        alert('El token no parece válido. Debe tener 3 partes separadas por puntos.');
+        return;
+    }
+    if (isTokenExpired(nuevoToken)) {
+        alert('⚠️ El token ingresado ya está expirado. Ingresa uno vigente.');
+        return;
+    }
+    currentBearer = nuevoToken;
+    localStorage.setItem('bearer', nuevoToken);
+    document.getElementById('modalToken').classList.add('hidden');
+    updateTokenStatus();
+});
+
+// Cerrar modal al hacer click fuera
+document.getElementById('modalToken').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('modalToken')) {
+        document.getElementById('modalToken').classList.add('hidden');
+    }
+});
 
 document.getElementById('consultarArqueo').addEventListener('click', async () => {
     const cuaId = document.getElementById('cuaId').value.trim();
@@ -37,6 +108,11 @@ document.getElementById('consultarArqueo').addEventListener('click', async () =>
 
     if (!cuaId) {
         alert('Por favor, ingrese un número de arqueo.');
+        return;
+    }
+
+    if (isTokenExpired(currentBearer)) {
+        resultados.innerHTML = '<p class="error">⚠️ El token está expirado. Presiona "Actualizar Token" para continuar.</p>';
         return;
     }
 
@@ -65,7 +141,6 @@ document.getElementById('consultarArqueo').addEventListener('click', async () =>
             const label = ETIQUETAS[key] || key;
             const scanned = scannedData[key] || [];
             const pendientes = items.filter(i => !scanned.includes(i));
-            const yaEscaneados = items.filter(i => scanned.includes(i));
             const todoEscaneado = pendientes.length === 0;
 
             const section = document.createElement('div');
@@ -76,7 +151,7 @@ document.getElementById('consultarArqueo').addEventListener('click', async () =>
                     <span class="categoria-count">
                         ${todoEscaneado
                             ? `<span class="badge-ok">✅ Todo escaneado (${items.length})</span>`
-                            : `${pendientes.length} pendientes / ${yaEscaneados.length} escaneados`
+                            : `${pendientes.length} pendientes / ${scanned.length} escaneados`
                         }
                     </span>
                     ${!todoEscaneado
@@ -131,3 +206,6 @@ async function escanearCategoria(cuaId, sucursalId, key, items, statusEl) {
     btn.textContent = 'Escaneado';
     btn.disabled = true;
 }
+
+// Inicializar estado del token al cargar
+updateTokenStatus();
