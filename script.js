@@ -23,6 +23,9 @@ const DEFAULT_BEARER = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMCIsInNjcCI6InVzZXIiLCJ
 
 let currentBearer = localStorage.getItem('bearer') || DEFAULT_BEARER;
 
+// Rastreo de pendientes por categoría para saber cuándo habilitar "Entregar"
+let pendientesPorCategoria = {};
+
 function getHeaders(sucursalId) {
     return {
         'accept': 'application/json',
@@ -36,18 +39,14 @@ function isTokenExpired(token) {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         return Date.now() / 1000 > payload.exp;
-    } catch {
-        return true;
-    }
+    } catch { return true; }
 }
 
 function getTokenExpiry(token) {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         return new Date(payload.exp * 1000);
-    } catch {
-        return null;
-    }
+    } catch { return null; }
 }
 
 function updateTokenStatus() {
@@ -58,12 +57,19 @@ function updateTokenStatus() {
     } else {
         const exp = getTokenExpiry(currentBearer);
         const diff = Math.round((exp - Date.now()) / 1000 / 3600);
-        statusEl.textContent = `🟢 Token válido — expira en ${diff}h (${exp.toLocaleDateString('es-CL')} ${exp.toLocaleTimeString('es-CL', {hour: '2-digit', minute:'2-digit'})})`;
+        statusEl.textContent = `🟢 Token válido — expira en ${diff}h (${exp.toLocaleDateString('es-CL')} ${exp.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })})`;
         statusEl.className = 'token-status valid';
     }
 }
 
-// Modal handlers
+function checkEntregarButton() {
+    const btnEntregar = document.getElementById('btnEntregar');
+    if (!btnEntregar) return;
+    const todosEscaneados = Object.values(pendientesPorCategoria).every(v => v === 0);
+    btnEntregar.disabled = !todosEscaneados;
+}
+
+// Modal token
 document.getElementById('btnActualizarToken').addEventListener('click', () => {
     document.getElementById('modalToken').classList.remove('hidden');
     document.getElementById('inputNuevoToken').value = '';
@@ -76,40 +82,28 @@ document.getElementById('btnCancelarToken').addEventListener('click', () => {
 
 document.getElementById('btnGuardarToken').addEventListener('click', () => {
     const nuevoToken = document.getElementById('inputNuevoToken').value.trim();
-    if (!nuevoToken) {
-        alert('Por favor, ingresa el token.');
-        return;
-    }
-    if (nuevoToken.split('.').length !== 3) {
-        alert('El token no parece válido. Debe tener 3 partes separadas por puntos.');
-        return;
-    }
-    if (isTokenExpired(nuevoToken)) {
-        alert('⚠️ El token ingresado ya está expirado. Ingresa uno vigente.');
-        return;
-    }
+    if (!nuevoToken) { alert('Por favor, ingresa el token.'); return; }
+    if (nuevoToken.split('.').length !== 3) { alert('El token no parece válido.'); return; }
+    if (isTokenExpired(nuevoToken)) { alert('⚠️ El token ingresado ya está expirado.'); return; }
     currentBearer = nuevoToken;
     localStorage.setItem('bearer', nuevoToken);
     document.getElementById('modalToken').classList.add('hidden');
     updateTokenStatus();
 });
 
-// Cerrar modal al hacer click fuera
 document.getElementById('modalToken').addEventListener('click', (e) => {
     if (e.target === document.getElementById('modalToken')) {
         document.getElementById('modalToken').classList.add('hidden');
     }
 });
 
+// Consultar arqueo
 document.getElementById('consultarArqueo').addEventListener('click', async () => {
     const cuaId = document.getElementById('cuaId').value.trim();
     const sucursalId = document.getElementById('sucursal').value;
     const resultados = document.getElementById('resultados');
 
-    if (!cuaId) {
-        alert('Por favor, ingrese un número de arqueo.');
-        return;
-    }
+    if (!cuaId) { alert('Por favor, ingrese un número de arqueo.'); return; }
 
     if (isTokenExpired(currentBearer)) {
         resultados.innerHTML = '<p class="error">⚠️ El token está expirado. Presiona "Actualizar Token" para continuar.</p>';
@@ -117,6 +111,11 @@ document.getElementById('consultarArqueo').addEventListener('click', async () =>
     }
 
     resultados.innerHTML = '<p>Consultando...</p>';
+    pendientesPorCategoria = {};
+
+    // Ocultar sección entregar mientras se reconsulta
+    const seccionEntregar = document.getElementById('seccionEntregar');
+    seccionEntregar.classList.add('hidden');
 
     try {
         const res = await fetch(`${BASE_URL}/api/v2/reports/validate_bdp_scan?cua_id=${cuaId}&locale=es`, {
@@ -142,6 +141,8 @@ document.getElementById('consultarArqueo').addEventListener('click', async () =>
             const scanned = scannedData[key] || [];
             const pendientes = items.filter(i => !scanned.includes(i));
             const todoEscaneado = pendientes.length === 0;
+
+            pendientesPorCategoria[key] = pendientes.length;
 
             const section = document.createElement('div');
             section.className = 'categoria-section';
@@ -174,6 +175,12 @@ document.getElementById('consultarArqueo').addEventListener('click', async () =>
             resultados.innerHTML = '<p>No hay items pendientes.</p>';
         }
 
+        // Mostrar sección entregar y evaluar si habilitarla
+        seccionEntregar.classList.remove('hidden');
+        document.getElementById('btnEntregar').dataset.cuaId = cuaId;
+        document.getElementById('btnEntregar').dataset.sucursalId = sucursalId;
+        checkEntregarButton();
+
     } catch (error) {
         console.error(error);
         resultados.innerHTML = `<p class="error">❌ Error: ${error.message}</p>`;
@@ -188,7 +195,6 @@ async function escanearCategoria(cuaId, sucursalId, key, items, statusEl) {
 
     for (let i = 0; i < items.length; i++) {
         statusEl.textContent = `Escaneando ${i + 1} de ${items.length}...`;
-
         try {
             const res = await fetch(`${BASE_URL}/api/v2/reports/bdp_onscan_update?locale=es`, {
                 method: 'POST',
@@ -197,15 +203,52 @@ async function escanearCategoria(cuaId, sucursalId, key, items, statusEl) {
             });
             const data = await res.json();
             data.success ? ok++ : fail++;
-        } catch {
-            fail++;
-        }
+        } catch { fail++; }
     }
 
+    pendientesPorCategoria[key] = 0;
     statusEl.textContent = `✅ Completado: ${ok} ok, ${fail} fallidos.`;
     btn.textContent = 'Escaneado';
     btn.disabled = true;
+
+    checkEntregarButton();
 }
 
-// Inicializar estado del token al cargar
+// Entregar arqueo
+document.getElementById('btnEntregar').addEventListener('click', async () => {
+    const btn = document.getElementById('btnEntregar');
+    const cuaId = btn.dataset.cuaId;
+    const sucursalId = btn.dataset.sucursalId;
+    const statusEntregar = document.getElementById('statusEntregar');
+
+    if (!confirm(`¿Confirmas entregar el arqueo ${cuaId}?`)) return;
+
+    btn.disabled = true;
+    statusEntregar.textContent = 'Entregando arqueo...';
+    statusEntregar.className = 'entregar-status';
+
+    try {
+        const res = await fetch(`${BASE_URL}/api/v2/reports/update_deposit_status_bdp?locale=es`, {
+            method: 'POST',
+            headers: { ...getHeaders(sucursalId), 'content-type': 'application/json; charset=UTF-8' },
+            body: JSON.stringify({ cua_id: cuaId })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            statusEntregar.textContent = `✅ Arqueo ${cuaId} entregado correctamente.`;
+            statusEntregar.className = 'entregar-status ok';
+            btn.textContent = 'Entregado';
+        } else {
+            throw new Error(data.errors || 'Error al entregar');
+        }
+    } catch (error) {
+        console.error(error);
+        statusEntregar.textContent = `❌ Error al entregar: ${error.message}`;
+        statusEntregar.className = 'entregar-status error';
+        btn.disabled = false;
+    }
+});
+
 updateTokenStatus();

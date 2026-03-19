@@ -208,3 +208,46 @@ button:disabled {
 .btn-cancelar:hover {
     background-color: #545b62;
 }
+
+/* Sección entregar */
+hr {
+    margin: 25px 0 15px;
+    border: none;
+    border-top: 1px solid #ddd;
+}
+
+.entregar-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.btn-entregar {
+    padding: 12px 30px;
+    background-color: #28a745;
+    font-size: 1em;
+    font-weight: bold;
+}
+
+.btn-entregar:hover:not(:disabled) {
+    background-color: #1e7e34;
+}
+
+.btn-entregar:disabled {
+    background-color: #aaa;
+}
+
+.entregar-status {
+    margin: 0;
+    font-size: 0.95em;
+    color: #444;
+}
+
+.entregar-status.ok {
+    color: #155724;
+    font-weight: bold;
+}
+
+.entregar-status.error {
+    color: #721c24;
+}
