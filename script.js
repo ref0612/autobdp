@@ -125,7 +125,12 @@ document.getElementById('consultarArqueo').addEventListener('click', async () =>
 
         if (!res.ok) {
             const err = await res.json();
-            throw new Error(err.errors || `Error ${res.status}`);
+            const msg = err.errors || `Error ${res.status}`;
+            if (typeof msg === 'string' && msg.toLowerCase().includes('punto de venta ya ha sido escaneado')) {
+                resultados.innerHTML = '<p class="info">✅ El punto de venta ya ha sido escaneado. No hay pendientes.</p>';
+                return;
+            }
+            throw new Error(msg);
         }
 
         const data = await res.json();

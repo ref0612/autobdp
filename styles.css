@@ -251,3 +251,10 @@ hr {
 .entregar-status.error {
     color: #721c24;
 }
+
+.info {
+    color: #155724;
+    background: #d4edda;
+    padding: 10px;
+    border-radius: 4px;
+}
