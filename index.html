@@ -4,16 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Escaneo Automático</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <div class="top-bar">
-            <h1>Escaneo Automático</h1>
-            <button id="btnActualizarToken" class="btn-token">🔑 Actualizar Token</button>
-        </div>
-
-        <p id="tokenStatus" class="token-status"></p>
+        <h1>Escaneo Automático</h1>
 
         <div class="form-group">
             <label for="sucursal">Sucursal:</label>
@@ -41,20 +37,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Modal token -->
-    <div id="modalToken" class="modal hidden">
-        <div class="modal-box">
-            <h2>Actualizar Token</h2>
-            <p>Pega el nuevo Bearer token a continuación:</p>
-            <textarea id="inputNuevoToken" rows="5" placeholder="Solo el código, sin la palabra Bearer. Ej: eyJhbGci..."></textarea>
-            <div class="modal-buttons">
-                <button id="btnGuardarToken" class="btn-guardar">Guardar</button>
-                <button id="btnCancelarToken" class="btn-cancelar">Cancelar</button>
-            </div>
-        </div>
-    </div>
-
     <script src="script.js"></script>
 </body>
 </html>
