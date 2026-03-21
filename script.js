@@ -1,14 +1,14 @@
 const BASE_URL = 'https://autobdp.onrender.com';
 
 const ETIQUETAS = {
-    confirmed_mot: 'Confirmed MOT',
-    prepostponed:  'Prepostponed',
-    cancelled_mot: 'Cancelled MOT',
-    confirmed_ot:  'Confirmed OT',
+    confirmed_mot: 'Cupones Confirmados (MOT)',
+    prepostponed:  'Cambios de Fecha',
+    cancelled_mot: 'Cupones Cancelados (MOT)',
+    confirmed_ot:  'Cupones Confirmados (OT)',
     expenses:      'Gastos',
     incomes:       'Ingresos',
-    rectify:       'Rectificar',
-    cancelled:     'Cancelados'
+    rectify:       'Anulaciones',
+    cancelled:     'Boletos Cancelados'
 };
 
 let pendientesPorCategoria = {};
