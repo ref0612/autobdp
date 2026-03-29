@@ -26,23 +26,26 @@ async function getToken() {
         },
         body: JSON.stringify(CREDENTIALS)
     });
-    const data = await res.json();
-    cachedToken = data.data?.token;
-    const payload = JSON.parse(Buffer.from(cachedToken.split('.')[1], 'base64').toString());
+
+    // Token viene en el header authorization de la respuesta
+    const authHeader = res.headers.get('authorization');
+    if (!authHeader) throw new Error('Header authorization no encontrado en respuesta de login');
+
+    const token = authHeader.replace('Bearer ', '').trim();
+    cachedToken = token;
+
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
     tokenExpiry = payload.exp * 1000;
     console.log(`Token renovado. Expira: ${new Date(tokenExpiry).toLocaleString('es-CL')}`);
     return cachedToken;
 }
 
-const corsOptions = {
+app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['content-type', 'accept', 'switched-user-id', 'authorization', 'category_type']
-};
+}));
 
-app.use(cors(corsOptions));
-
-// Manejar preflight manualmente sin usar '*'
 app.use((req, res, next) => {
     if (req.method === 'OPTIONS') {
         res.set('Access-Control-Allow-Origin', '*');
@@ -58,8 +61,8 @@ app.use(async (req, res, next) => {
         req.authToken = await getToken();
         next();
     } catch (err) {
-        console.error('Error obteniendo token:', err);
-        res.status(500).json({ error: 'No se pudo autenticar con la API' });
+        console.error('Error obteniendo token:', err.message);
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -78,5 +81,5 @@ app.use('/', createProxyMiddleware({
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
     console.log(`Proxy server running at http://localhost:${PORT}`);
-    getToken().catch(console.error);
+    getToken().catch(err => console.error('Login inicial fallido:', err.message));
 });
