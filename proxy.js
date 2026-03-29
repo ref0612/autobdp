@@ -4,7 +4,6 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 
-// Credenciales de login
 const LOGIN_URL = 'https://api-costas.konnectpro.cl/api/v2/users/signin?is_system_side=false&locale=es';
 const CREDENTIALS = { user: { login: 'owner', password: 'K0n$Sys@1001' } };
 const API_KEY = 'QHH79qF2fsWEx98pvNeZpQ';
@@ -16,7 +15,6 @@ async function getToken() {
     if (cachedToken && Date.now() < tokenExpiry - 10 * 60 * 1000) {
         return cachedToken;
     }
-
     console.log('Obteniendo nuevo token...');
     const res = await fetch(LOGIN_URL, {
         method: 'POST',
@@ -28,26 +26,32 @@ async function getToken() {
         },
         body: JSON.stringify(CREDENTIALS)
     });
-
     const data = await res.json();
     cachedToken = data.data?.token;
-
     const payload = JSON.parse(Buffer.from(cachedToken.split('.')[1], 'base64').toString());
     tokenExpiry = payload.exp * 1000;
-
-    const expDate = new Date(tokenExpiry).toLocaleString('es-CL');
-    console.log(`Token renovado. Expira: ${expDate}`);
-
+    console.log(`Token renovado. Expira: ${new Date(tokenExpiry).toLocaleString('es-CL')}`);
     return cachedToken;
 }
 
-app.use(cors({
+const corsOptions = {
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['content-type', 'accept', 'switched-user-id', 'authorization', 'category_type']
-}));
+};
 
-app.options('*', cors());
+app.use(cors(corsOptions));
+
+// Manejar preflight manualmente sin usar '*'
+app.use((req, res, next) => {
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.set('Access-Control-Allow-Headers', 'content-type, accept, switched-user-id, authorization, category_type');
+        return res.sendStatus(200);
+    }
+    next();
+});
 
 app.use(async (req, res, next) => {
     try {
