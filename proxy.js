@@ -13,7 +13,6 @@ let cachedToken = null;
 let tokenExpiry = 0;
 
 async function getToken() {
-    // Si el token es válido y quedan más de 10 minutos, reutilizarlo
     if (cachedToken && Date.now() < tokenExpiry - 10 * 60 * 1000) {
         return cachedToken;
     }
@@ -33,7 +32,6 @@ async function getToken() {
     const data = await res.json();
     cachedToken = data.data?.token;
 
-    // Decodificar expiración del JWT
     const payload = JSON.parse(Buffer.from(cachedToken.split('.')[1], 'base64').toString());
     tokenExpiry = payload.exp * 1000;
 
@@ -43,9 +41,14 @@ async function getToken() {
     return cachedToken;
 }
 
-app.use(cors());
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['content-type', 'accept', 'switched-user-id', 'authorization', 'category_type']
+}));
 
-// Middleware que inyecta el token automáticamente
+app.options('*', cors());
+
 app.use(async (req, res, next) => {
     try {
         req.authToken = await getToken();
@@ -71,6 +74,5 @@ app.use('/', createProxyMiddleware({
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
     console.log(`Proxy server running at http://localhost:${PORT}`);
-    // Login inicial al arrancar
     getToken().catch(console.error);
 });
