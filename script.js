@@ -1,4 +1,4 @@
-const BASE_URL = 'https://autobdp.onrender.com';
+const BASE_URL = 'https://autobdp.fly.dev';
 
 const ETIQUETAS = {
     confirmed_mot: 'Cupones Confirmados (MOT)',
