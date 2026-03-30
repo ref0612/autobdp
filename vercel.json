@@ -1,0 +1,27 @@
+{
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://autobdp.fly.dev; img-src 'self' data:;" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" }
+  ],
+  "routes": [
+    { "src": "/package.json", "status": 404 },
+    { "src": "/package-lock.json", "status": 404 },
+    { "src": "/Dockerfile", "status": 404 },
+    { "src": "/fly.toml", "status": 404 },
+    { "src": "/proxy.js", "status": 404 },
+    { "src": "/.dockerignore", "status": 404 },
+    { "src": "/README.md", "status": 404 }
+  ]
+}
