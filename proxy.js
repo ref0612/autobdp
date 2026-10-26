@@ -4,9 +4,19 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 
+// Credenciales: se configuran como secrets en Fly (fly secrets set ...), nunca en el código.
+const KONNECT_USER = process.env.KONNECT_USER;
+const KONNECT_PASSWORD = process.env.KONNECT_PASSWORD;
+const API_KEY = process.env.KONNECT_API_KEY;
+
+const missing = ['KONNECT_USER', 'KONNECT_PASSWORD', 'KONNECT_API_KEY'].filter(k => !process.env[k]);
+if (missing.length) {
+    console.error(`Faltan variables de entorno: ${missing.join(', ')}`);
+    process.exit(1);
+}
+
 const LOGIN_URL = 'https://api-costas.konnectpro.cl/api/v2/users/signin?is_system_side=false&locale=es';
-const CREDENTIALS = { user: { login: 'owner', password: 'Konnect@1001' } };
-const API_KEY = 'QHH79qF2fsWEx98pvNeZpQ';
+const CREDENTIALS = { user: { login: KONNECT_USER, password: KONNECT_PASSWORD } };
 
 let cachedToken = null;
 let tokenExpiry = 0;
@@ -29,7 +39,9 @@ async function getToken() {
 
     // Token viene en el header authorization de la respuesta
     const authHeader = res.headers.get('authorization');
-    if (!authHeader) throw new Error('Header authorization no encontrado en respuesta de login');
+    if (!authHeader) {
+        throw new Error(`Login en Konnect fallido (HTTP ${res.status}): header authorization no encontrado`);
+    }
 
     const token = authHeader.replace('Bearer ', '').trim();
     cachedToken = token;
