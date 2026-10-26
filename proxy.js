@@ -5,7 +5,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const app = express();
 
 const LOGIN_URL = 'https://api-costas.konnectpro.cl/api/v2/users/signin?is_system_side=false&locale=es';
-const CREDENTIALS = { user: { login: 'owner', password: 'K0n$Sys@1001' } };
+const CREDENTIALS = { user: { login: 'owner', password: 'Konnect@1001' } };
 const API_KEY = 'QHH79qF2fsWEx98pvNeZpQ';
 
 let cachedToken = null;
